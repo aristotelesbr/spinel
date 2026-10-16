@@ -1618,6 +1618,17 @@ int poly_cls_value_cands(Compiler *c, int id, const char *name, int argc, const 
        candidate it can drop; the walk is memoized per call. */
     if (!poly_cls_value_reaches(c, id, k)) continue;
     int kmi = cc8[ki].mi;
+    /* nor a module's own `def self.x` when no box can hold the module, one
+       the program only calls by name (comp_class_may_be_value): the analysis
+       leaves its answer out of the call's type (share_target_reachable), so
+       its arm would put that answer into a slot typed for the others --
+       Shellwords.split beside a String's split in a lambda's parameter. A
+       class keeps its arms, and so does a reopened builtin (`class Class`,
+       registered as Class__reopen) or a method copied in from elsewhere (a
+       module mixed into Class): every class answers those. */
+    if (kmi >= 0 && kmi < c->nscopes && c->scopes[kmi].is_cmethod && c->scopes[kmi].class_id == k &&
+        !c->scopes[kmi].origin_module_ci && !strstr(c->classes[k].name, "__reopen") &&
+        comp_class_is_module(c, &c->classes[k]) && !comp_class_may_be_value(c, k)) continue;
     /* a yielding candidate is called through its proc form (#3399) */
     int kpf = scope_proc_form_of(c, kmi);
     if (kpf >= 0 && !proc_form_live(c, kpf)) kpf = -1;
