@@ -1083,7 +1083,8 @@ static inline sp_int sp_str_setbyte(const char *s, sp_int i, sp_int v) {
   unsigned char m = ((const unsigned char *)s)[-1];
   if (m == 0xfe || m == 0xfc) {
     (((sp_str_hdr *)(s - 1)) - 1)->hash = 0;  /* invalidate cached key hash */
-      (((sp_str_hdr *)(s - 1)) - 1)->size &= ~SP_STR_SIZE_ASCII7;  /* and the 7-bit answer */
+    sp_str_lcache_drop(s);  /* and the 7-bit answer and the cached length: a byte
+                               can make valid text invalid, or the reverse */
     ((char *)s)[i] = (char)v;
     return v;
   }

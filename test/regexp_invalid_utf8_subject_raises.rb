@@ -43,3 +43,8 @@ v = "ñandú" + ""
 p v.length
 t("valid_after_length") { v =~ /d/ }
 t("forced_binary") { u.dup.force_encoding("BINARY") =~ /b/ }
+# a setbyte that breaks a String whose length was read is seen
+w = "é".dup
+w.length
+w.setbyte(1, 255)
+t("setbyte_after_length") { w =~ /x/ }

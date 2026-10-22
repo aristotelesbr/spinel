@@ -32,3 +32,4 @@ after_length: ArgumentError: invalid byte sequence in UTF-8
 5
 valid_after_length: 3
 forced_binary: 2
+setbyte_after_length: ArgumentError: invalid byte sequence in UTF-8
