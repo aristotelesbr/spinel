@@ -21,3 +21,5 @@ t("split space limit 1") { s.split(" ", 1) }
 t("split empty string") { "".split(",") }
 t("split binary") { s.b.split(" ") }
 t("split valid") { "é b,c".split(" ") }
+t("split regexp") { s.split(/,/) }
+t("split regexp limit 1") { s.split(/,/, 1) }

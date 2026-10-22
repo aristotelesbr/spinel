@@ -11,3 +11,5 @@ split space limit 1: ["a\xFF b,c"]
 split empty string: []
 split binary: ["a\xFF", "b,c"]
 split valid: ["é", "b,c"]
+split regexp: ArgumentError: invalid byte sequence in UTF-8
+split regexp limit 1: ["a\xFF b,c"]
