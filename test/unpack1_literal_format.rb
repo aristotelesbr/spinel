@@ -15,7 +15,8 @@ p [200].pack('C').unpack1('C')
 fmt = 'V'
 p data.unpack1(fmt)
 
-# Multi-directive and string-directive formats keep the boxed poly result.
+# A multi-directive format keeps the boxed poly result; a String directive
+# answers a String.
 p data.unpack1('VV')
 p "ABCD".unpack1('a4').length
 

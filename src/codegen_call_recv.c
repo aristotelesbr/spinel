@@ -7906,22 +7906,24 @@ static int str_arms_convert(Compiler *c, int id, Buf *b, const NodeTable *nt, co
     int one = sp_streq(name, "unpack1");
     TyKind u1t = one ? repr_of(c, id).as_ty : TY_POLY;
     if (one && oint_kind(u1t)) { oint_open(c, id, u1t, b); buf_printf(b, "%s(sp_PolyArray_get(", oint_unbox(u1t)); }
+    else if (one && u1t == TY_STRING) buf_puts(b, "sp_poly_unbox_s(sp_PolyArray_get(");
     else if (one)                    buf_puts(b, "sp_PolyArray_get(");
     buf_printf(b, "sp_str_unpack_off(%s, ", r); emit_str_expr(c, argv[0], b);
     buf_puts(b, ", "); emit_int_expr(c, offv, b); buf_puts(b, ")");
-    if (one) buf_puts(b, oint_kind(u1t) ? ", 0))" : ", 0)");
+    if (one) buf_puts(b, oint_kind(u1t) || u1t == TY_STRING ? ", 0))" : ", 0)");
     if (one && oint_kind(u1t)) oint_close(c, id, b);
   }
   else if (sp_streq(name, "unpack1") && argc == 1) {
-    /* A literal single-directive numeric format fixes the value's type
-       (the analyzer's an_unpack1_lit_type): unbox the extracted element
-       (int, or float? -- the _opt keeps a padded nil from short input
-       as float-nil instead of 0.0). */
+    /* A literal single-directive format fixes the value's type (the
+       analyzer's an_unpack1_lit_type): unbox the extracted element (int,
+       or float? -- the _opt keeps a padded nil from short input as
+       float-nil instead of 0.0 -- or a String directive's new String). */
     TyKind u1t = repr_of(c, id).as_ty;
     if (oint_kind(u1t)) { oint_open(c, id, u1t, b); buf_printf(b, "%s(sp_PolyArray_get(sp_str_unpack(%s, ", oint_unbox(u1t), r); }
+    else if (u1t == TY_STRING) buf_printf(b, "sp_poly_unbox_s(sp_PolyArray_get(sp_str_unpack(%s, ", r);
     else                buf_printf(b, "sp_PolyArray_get(sp_str_unpack(%s, ", r);
     emit_str_expr(c, argv[0], b);
-    buf_puts(b, oint_kind(u1t) ? "), 0))" : "), 0)");
+    buf_puts(b, oint_kind(u1t) || u1t == TY_STRING ? "), 0))" : "), 0)");
     if (oint_kind(u1t)) oint_close(c, id, b);
   }
   else if (sp_streq(name, "chars") && argc == 0)   buf_printf(b, "sp_str_chars(%s)", r);

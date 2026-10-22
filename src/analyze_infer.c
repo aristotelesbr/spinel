@@ -1126,13 +1126,13 @@ int call_breaks(Compiler *c, int id) {
   return block_has_top_break(c, nt_ref(nt, block, "body"));
 }
 
-/* str.unpack1(fmt) with a literal single-directive numeric format: the
-   directive fixes the extracted value's type, so the result does not need
-   to stay poly (`data[4, 4].unpack1('V')` reading a WAD header count in
-   doom). Count/endian suffixes ("V2", "l<", "q>*") keep the first value's
-   type. Only the numeric directives sp_str_unpack decodes qualify --
-   integers to TY_INT, the float/double directives to TY_FLOAT;
-   multi-directive, interpolated, and other formats stay TY_POLY. */
+/* str.unpack1(fmt) with a literal single-directive format: the directive
+   fixes the extracted value's type, so the result does not need to stay
+   poly (`data[4, 4].unpack1('V')` reading a WAD header count in doom).
+   Count/endian suffixes ("V2", "l<", "q>*") keep the first value's type.
+   The numeric directives sp_str_unpack decodes give TY_INT or TY_FLOAT,
+   the String directives TY_STRING; multi-directive, interpolated, and
+   other formats stay TY_POLY. */
 static TyKind an_unpack1_lit_type(const NodeTable *nt, int arg) {
   const char *aty = nt_type(nt, arg);
   if (!aty || !sp_streq(aty, "StringNode")) return TY_POLY;
@@ -1150,6 +1150,9 @@ static TyKind an_unpack1_lit_type(const NodeTable *nt, int arg) {
      neither end of its range, and the C is the same for every target. */
   if (strchr("cCsSlLnNvV", d)) return TY_INT;
   if (strchr("dDfFeEgG", d)) return TY_FLOAT;
+  /* the String directives answer a new String, "" from an empty input,
+     never nil (`digest.unpack1("H*")`) */
+  if (strchr("aAZBbHhmMu", d)) return TY_STRING;
   return TY_POLY;
 }
 
@@ -3366,6 +3369,9 @@ static int infer_poly_operand_call(Compiler *c, int id, const NodeTable *nt, con
         /* a user class owning the name puts its own arm in the dispatch, and
            both arms share one C temp: type the call for what both can hold */
         TyKind u1 = an_unpack1_lit_type(nt, argv[0]);
+        /* (a String directive's answer stays boxed here: the boxed
+           dispatch hands it on as a box, not as a String) */
+        if (u1 == TY_STRING) u1 = TY_POLY;
         { *out = an_user_ret_disagrees(c, name, u1) ? TY_POLY : u1; return 1; }
       }
       /* poly.delete(chars): String#delete on a value that widened to poly
