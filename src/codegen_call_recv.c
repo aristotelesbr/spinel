@@ -15242,7 +15242,11 @@ static int aref_arg_mistyped(Compiler *c, int ci, const int *argv, int argc) {
     char mvn[300]; snprintf(mvn, sizeof mvn, "@%s", k->readers[j]);
     int mvi = comp_ivar_index(k, mvn);
     TyKind pt = (mvi >= 0 && k->ivar_types[mvi] != TY_UNKNOWN) ? k->ivar_types[mvi] : TY_POLY;
-    if (pt != TY_POLY && repr_of(c, argv[j]).as_ty != pt) return 1;
+    TyKind at = repr_of(c, argv[j]).as_ty;
+    /* (a String fills a String member as its bytes or as its handle: the
+       `new` re-entry hands it on as the member takes it) */
+    if ((pt == TY_STRING || pt == TY_STRBUF) && (at == TY_STRING || at == TY_STRBUF)) continue;
+    if (pt != TY_POLY && at != pt) return 1;
   }
   return 0;
 }
