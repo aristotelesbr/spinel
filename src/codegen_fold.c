@@ -8962,12 +8962,20 @@ void ran_first_bind_read(int v, int th) {
   snprintf(g_argov_text[g_n_argov - 1], ARGOV_TEXT_LEN, "sp_strbuf_read_pub(_t%d)", th);
   g_ran_hnd[g_n_ran_hnd - 1].read = 1;
 }
-/* The handle temp of node v's live ran_first_bind_read binding, or -1. */
+/* The handle temp of node v's live ran_first_bind_read binding, or -1.
+   (view_unbind leaves the handle records behind: a record is live only
+   while the override at its index is still that handle's read, or a later
+   binding of the same node at the same index read a temp of another
+   statement's scope) */
 int ran_first_read_handle(int node) {
   for (int i = g_n_argov - 1; i >= 0; i--) {
     if (g_argov_node[i] != node) continue;
-    for (int j = 0; j < g_n_ran_hnd; j++)
-      if (g_ran_hnd[j].idx == i && g_ran_hnd[j].node == node) return g_ran_hnd[j].read ? g_ran_hnd[j].th : -1;
+    for (int j = 0; j < g_n_ran_hnd; j++) {
+      if (g_ran_hnd[j].idx != i || g_ran_hnd[j].node != node || !g_ran_hnd[j].read) continue;
+      char rd[ARGOV_TEXT_LEN];
+      snprintf(rd, sizeof rd, "sp_strbuf_read_pub(_t%d)", g_ran_hnd[j].th);
+      if (strcmp(g_argov_text[i], rd) == 0) return g_ran_hnd[j].th;
+    }
     return -1;
   }
   return -1;

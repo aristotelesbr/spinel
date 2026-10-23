@@ -1780,8 +1780,13 @@ static int emit_poly_cls_value_builtin(Compiler *c, int id, const char *name, in
      answer that can be nil is held as the oint */
   int slot_o = oint_kind(ret) && node_is_oint(c, id);
   int slot = view_bind(recv, "sp_unbox_class(_t%d)", tv);
+  /* (an argument held as its handle reads as that handle's String, and
+     hands the handle on where one is taken: ran_first_bind_read) */
   for (int a = 0; a < argc; a++)
-    if (subtree_has_side_effect(c, argv[a])) view_bind(argv[a], "_t%d", atmp[a]);
+    if (subtree_has_side_effect(c, argv[a])) {
+      if (atmp_ty[a] == TY_STRBUF && repr_share_rule(c)) ran_first_bind_read(argv[a], atmp[a]);
+      else view_bind(argv[a], "_t%d", atmp[a]);
+    }
   int va = view_push_arm(id, g_prbd_skip, 1);
   int vw = view_push(c, recv, TY_CLASS);
   int fv = view_push_face(recv, TY_CLASS);
