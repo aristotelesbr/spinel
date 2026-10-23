@@ -1,0 +1,76 @@
+# Throwaway check for matz/spinel#9982, run only on this fork branch:
+# `spin build` of the campfire tree Roundhouse emitted (the archive the
+# issue names), with the fix and with matz/spinel master. The steps follow
+# Roundhouse's campfire-spinel-build job.
+name: campfire-check-9982
+
+on:
+  push:
+    branches: [campfire-check-9982]
+  workflow_dispatch:
+
+jobs:
+  campfire:
+    name: campfire (${{ matrix.lane }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [fix, master]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.lane == 'fix' && github.repository || 'matz/spinel' }}
+          ref: ${{ matrix.lane == 'fix' && github.sha || 'master' }}
+          path: spinel-src
+      - name: System libvips + libsqlite3-dev + libjemalloc-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev libsqlite3-dev libjemalloc-dev sqlite3
+      - name: Build spinel
+        run: |
+          make -C spinel-src deps
+          make -C spinel-src -j4 all
+          git -C spinel-src log --oneline -1
+          echo "$PWD/spinel-src/bin" >> "$GITHUB_PATH"
+      - name: Fetch the campfire tree
+        run: |
+          curl -fsSL https://roundbench.showcase.party/archive/campfire/20261022-111949/spinel-tree.tgz -o tree.tgz
+          tar xzf tree.tgz
+      # matz/spinel#9982 (comment by matz): #9966's mixin-order check
+      # refuses this tree before the refusal under test; doing the prepend
+      # inside `class JbuilderTemplate`, ahead of its methods, gets past it.
+      - name: Move the JbuilderTemplate prepend ahead
+        working-directory: transpiled-campfire-spinel
+        run: |
+          python3 - <<'PY'
+          b = open("boot.rb").read()
+          blk = "class JbuilderTemplate\n  prepend BoundedJbuilderFragments\nend\n"
+          assert blk in b
+          open("boot.rb", "w").write(b.replace(blk, ""))
+          f = "runtime/action_controller_fragment_caching.rb"
+          lines = open(f).read().split("\n")
+          start = lines.index("class JbuilderTemplate")
+          lines[start:start + 1] = ['require_relative "../app/models/bounded_jbuilder_fragments"',
+                                    "class JbuilderTemplate",
+                                    "  prepend BoundedJbuilderFragments"]
+          open(f, "w").write("\n".join(lines))
+          PY
+          grep -n -B1 -A1 'prepend BoundedJbuilderFragments' runtime/action_controller_fragment_caching.rb
+      - name: spin build
+        working-directory: transpiled-campfire-spinel
+        run: |
+          set -o pipefail
+          start=$(date +%s)
+          spin build 2>&1 | tee ../build.log
+          echo "elapsed: $(( $(date +%s) - start ))s"
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.lane }}"
+            echo '```'
+            grep -E '#9258|refusal|error|->' build.log | head -20 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
